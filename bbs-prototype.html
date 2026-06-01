@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>電子掲示板 - BBS Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   カラー・トークン（ダークモード／ターミナル風）
+   ============================================================ */
+:root{
+  --bg:#0c0e12;
+  --bg2:#0f1217;
+  --card:#14181e;
+  --card2:#1a1f27;
+  --border:#252b35;
+  --border2:#323b48;
+  --text:#dde2e8;
+  --muted:#828b97;
+  --faint:#5b6470;
+  --green:#6fdc8c;
+  --green-dim:#4fae6c;
+  --blue:#6cb6ff;
+  --red:#ef6b73;
+  --amber:#e3b341;
+  --radius:10px;
+  --shadow:0 6px 24px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(111,220,140,.06), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0, rgba(255,255,255,.012) 1px, transparent 1px, transparent 3px),
+    var(--bg);
+  color:var(--text);
+  font-family:'Noto Sans JP', system-ui, sans-serif;
+  font-size:15px;
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+a{color:var(--blue);text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+
+/* ============================================================
+   ヘッダー
+   ============================================================ */
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(12,14,18,.85);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.header-inner{
+  max-width:880px;margin:0 auto;padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.logo{
+  font-family:'DotGothic16', monospace;
+  font-size:24px;letter-spacing:1px;
+  color:var(--green);
+  text-shadow:0 0 14px rgba(111,220,140,.45);
+  cursor:pointer;user-select:none;
+}
+.logo small{
+  display:block;font-size:10px;letter-spacing:3px;color:var(--faint);
+  text-shadow:none;margin-top:-2px;
+}
+.header-actions{display:flex;gap:8px;align-items:center;}
+.admin-badge{
+  font-size:11px;color:var(--amber);border:1px solid var(--amber);
+  padding:3px 8px;border-radius:999px;
+  display:none;
+}
+body.admin .admin-badge{display:inline-block;}
+
+/* ============================================================
+   共通レイアウト
+   ============================================================ */
+.container{max-width:880px;margin:0 auto;padding:18px 16px 80px;}
+
+.btn{
+  border:1px solid var(--border2);
+  background:var(--card2);color:var(--text);
+  padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;
+  transition:.15s;
+}
+.btn:hover{border-color:var(--green-dim);color:var(--green);}
+.btn-primary{
+  background:linear-gradient(180deg, var(--green-dim), #3d8a55);
+  border-color:var(--green-dim);color:#06140b;font-weight:700;
+}
+.btn-primary:hover{filter:brightness(1.1);color:#06140b;}
+.btn-danger{border-color:#5a2b30;color:var(--red);background:#1c1416;}
+.btn-danger:hover{background:#2a1a1d;border-color:var(--red);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--muted);padding:4px 8px;}
+.btn-ghost:hover{color:var(--green);background:rgba(255,255,255,.04);}
+.btn-sm{padding:4px 9px;font-size:11.5px;}
+
+/* ============================================================
+   フォーム
+   ============================================================ */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+.form-card{padding:16px;margin-bottom:22px;}
+.form-card h2{
+  margin:0 0 12px;font-size:14px;color:var(--green);
+  font-weight:700;letter-spacing:.5px;
+  display:flex;align-items:center;gap:8px;
+}
+.form-card h2::before{content:"▶";font-size:10px;color:var(--green-dim);}
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;}
+input[type=text], textarea{
+  width:100%;background:var(--bg2);border:1px solid var(--border2);
+  color:var(--text);border-radius:7px;padding:9px 11px;font-size:14px;
+  font-family:inherit;resize:vertical;transition:.15s;
+}
+input[type=text]:focus, textarea:focus{
+  outline:none;border-color:var(--green-dim);
+  box-shadow:0 0 0 2px rgba(111,220,140,.12);
+}
+textarea{min-height:90px;line-height:1.6;}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;}
+.form-row .field{flex:1;min-width:140px;}
+.form-foot{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;}
+
+/* 画像アップロード */
+.img-pick{display:inline-flex;align-items:center;gap:8px;}
+.img-pick input[type=file]{display:none;}
+.img-label{
+  border:1px dashed var(--border2);border-radius:7px;padding:7px 12px;
+  font-size:12px;color:var(--muted);transition:.15s;
+}
+.img-label:hover{border-color:var(--green-dim);color:var(--green);}
+.img-prev{display:none;align-items:center;gap:8px;}
+.img-prev img{height:38px;width:38px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);}
+.img-prev.show{display:inline-flex;}
+.img-clear{color:var(--red);font-size:11px;cursor:pointer;background:none;border:none;}
+
+.hint{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.6;}
+.hint code{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--green);}
+
+/* ============================================================
+   スレッド一覧
+   ============================================================ */
+.list-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;}
+.list-head h2{font-size:13px;color:var(--muted);margin:0;letter-spacing:1px;font-weight:500;}
+.list-head .count{font-size:12px;color:var(--faint);}
+
+.thread-card{
+  padding:14px 16px;margin-bottom:10px;cursor:pointer;
+  display:flex;gap:14px;align-items:flex-start;transition:.15s;
+}
+.thread-card:hover{border-color:var(--green-dim);background:var(--card2);transform:translateY(-1px);}
+.thread-thumb{
+  width:54px;height:54px;flex-shrink:0;border-radius:8px;object-fit:cover;
+  border:1px solid var(--border2);background:var(--bg2);
+}
+.thread-thumb.placeholder{
+  display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:20px;
+}
+.thread-main{flex:1;min-width:0;}
+.thread-title{font-weight:700;font-size:15px;color:var(--text);margin-bottom:3px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.thread-title .tid{font-family:monospace;font-size:11px;color:var(--green-dim);font-weight:400;}
+.thread-snippet{font-size:12.5px;color:var(--muted);overflow:hidden;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.thread-meta{font-size:11px;color:var(--faint);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;}
+.thread-meta b{color:var(--amber);font-weight:700;}
+.full-tag{font-size:10px;color:var(--red);border:1px solid var(--red);border-radius:4px;padding:1px 6px;}
+
+.empty{text-align:center;color:var(--faint);padding:50px 0;font-size:13px;}
+
+/* ============================================================
+   スレッド詳細・レス
+   ============================================================ */
+.thread-head{margin-bottom:14px;}
+.back{font-size:13px;color:var(--muted);background:none;border:none;padding:6px 0;}
+.back:hover{color:var(--green);}
+.thread-head h1{font-size:19px;margin:6px 0 4px;line-height:1.4;}
+.thread-head .sub{font-size:11.5px;color:var(--faint);}
+
+.posts{display:flex;flex-direction:column;gap:0;}
+.post{
+  padding:13px 4px;border-bottom:1px solid var(--border);
+  scroll-margin-top:80px;
+}
+.post.op{
+  background:linear-gradient(180deg, rgba(111,220,140,.04), transparent);
+  border-radius:var(--radius);padding:14px;border:1px solid var(--border);
+  border-bottom:1px solid var(--border);margin-bottom:8px;
+}
+.post.flash{animation:flash 1.4s ease;}
+@keyframes flash{0%{background:rgba(111,220,140,.18);}100%{background:transparent;}}
+.post.reported-row{border-left:3px solid var(--amber);}
+.post-head{
+  display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  font-size:12px;margin-bottom:6px;
+}
+.post-num{color:var(--green);font-weight:700;font-family:monospace;}
+.post-name{color:var(--blue);font-weight:700;}
+.post-date{color:var(--faint);font-family:monospace;font-size:11px;}
+.post-id{color:var(--faint);font-family:monospace;font-size:11px;}
+.post-id .ban-mark{color:var(--red);}
+.post-body{font-size:14.5px;word-break:break-word;white-space:normal;}
+.post-body img.attach{
+  display:block;max-width:min(360px,100%);max-height:340px;margin:10px 0 4px;
+  border-radius:8px;border:1px solid var(--border2);cursor:zoom-in;
+}
+.post-foot{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.report-badge{font-size:10.5px;color:var(--amber);border:1px solid var(--amber);
+  border-radius:4px;padding:1px 6px;}
+.deleted-body{color:var(--faint);font-style:italic;}
+
+/* アンカー */
+.anchor{color:var(--blue);font-weight:600;border-bottom:1px dashed rgba(108,182,255,.4);}
+.anchor:hover{color:#9ccbff;}
+
+/* ダイス */
+.dice{
+  display:inline-block;background:var(--bg2);border:1px solid var(--green-dim);
+  border-radius:6px;padding:0 8px;color:var(--green);font-family:monospace;
+  font-size:13px;font-weight:700;
+}
+.dice .dice-detail{color:var(--muted);font-weight:400;font-size:11px;}
+
+/* 管理人ツール（投稿内） */
+.mod-tools{display:none;gap:6px;}
+body.admin .mod-tools{display:inline-flex;}
+
+/* 締切表示 */
+.closed-note{
+  text-align:center;color:var(--red);font-size:13px;
+  border:1px dashed var(--red);border-radius:8px;padding:14px;margin-top:14px;
+}
+
+/* ============================================================
+   アンカーポップアップ
+   ============================================================ */
+#anchor-pop{
+  position:fixed;z-index:200;max-width:420px;display:none;
+  background:var(--card2);border:1px solid var(--green-dim);
+  border-radius:8px;padding:10px 12px;box-shadow:var(--shadow);
+  font-size:13px;pointer-events:none;
+}
+#anchor-pop .pp-head{font-size:11px;color:var(--green);margin-bottom:4px;font-family:monospace;}
+#anchor-pop .pp-body{color:var(--text);max-height:200px;overflow:hidden;}
+#anchor-pop img{max-width:120px;max-height:90px;border-radius:5px;display:block;margin-top:6px;}
+
+/* ============================================================
+   ライトボックス
+   ============================================================ */
+#lightbox{
+  position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.88);
+  display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;
+}
+#lightbox img{max-width:100%;max-height:100%;border-radius:8px;}
+
+/* ============================================================
+   モーダル（管理パネル）
+   ============================================================ */
+.modal-bg{
+  position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.7);
+  display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;
+}
+.modal-bg.show{display:flex;}
+.modal{width:100%;max-width:520px;}
+.modal-card{padding:20px;}
+.modal h2{margin:0 0 14px;font-size:16px;color:var(--green);}
+.modal section{margin-bottom:20px;}
+.modal section h3{font-size:12px;color:var(--muted);margin:0 0 8px;letter-spacing:.5px;}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.tag{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:999px;
+  padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px;
+  font-family:monospace;
+}
+.tag button{background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;line-height:1;}
+.inline-add{display:flex;gap:8px;}
+.inline-add input{flex:1;}
+.report-item{
+  background:var(--bg2);border:1px solid var(--border);border-radius:7px;
+  padding:9px 11px;margin-bottom:7px;font-size:12.5px;
+}
+.report-item .ri-head{display:flex;justify-content:space-between;gap:8px;color:var(--faint);font-size:11px;margin-bottom:4px;}
+.report-item .ri-body{color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.report-item .ri-actions{margin-top:7px;display:flex;gap:6px;}
+.modal-close{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.note{font-size:11px;color:var(--faint);margin-top:6px;}
+.danger-text{color:var(--red);}
+
+/* ============================================================
+   レスポンシブ
+   ============================================================ */
+@media (max-width:560px){
+  body{font-size:14px;}
+  .container{padding:14px 12px 70px;}
+  .logo{font-size:20px;}
+  .thread-head h1{font-size:17px;}
+  .form-row{flex-direction:column;}
+  .thread-thumb{width:46px;height:46px;}
+  .post.op{padding:12px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo" id="logo">電子掲示板<small>BBS PROTOTYPE</small></div>
+    <div class="header-actions">
+      <span class="admin-badge">⚙ 管理人モード</span>
+      <button class="btn btn-sm" id="adminBtn">管理</button>
+    </div>
+  </div>
+</header>
+
+<div class="container" id="app"><!-- 動的描画 --></div>
+
+<!-- アンカーポップアップ -->
+<div id="anchor-pop"></div>
+
+<!-- ライトボックス -->
+<div id="lightbox"><img src="" alt=""></div>
+
+<!-- 管理パネル -->
+<div class="modal-bg" id="adminModal">
+  <div class="modal">
+    <div class="card modal-card" id="adminModalBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   設定
+   ============================================================ */
+const LS_KEY   = 'bbs_state_v1';
+const SEED_KEY = 'bbs_seed';
+const ADMIN_KEY= 'bbs_admin';
+const MAX_RES  = 200;     // 1スレッドの最大レス数（>>1のOP含む）
+const MAX_DIM  = 800;     // 画像の最大辺(px) … LocalStorage節約のため自動縮小
+const ADMIN_PASS = 'admin'; // ⚠ プロトタイプ用の簡易パスワード。本番では絶対に使わないこと
+
+/* ============================================================
+   状態管理（LocalStorage）
+   ============================================================ */
+function defaultState(){
+  return { threads:[], bannedIds:[], ngWords:[], nextThreadId:1 };
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    s.threads = s.threads || [];
+    s.bannedIds = s.bannedIds || [];
+    s.ngWords = s.ngWords || [];
+    s.nextThreadId = s.nextThreadId || (s.threads.length+1);
+    return s;
+  }catch(e){ console.warn('load失敗', e); return null; }
+}
+function saveState(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }catch(e){
+    alert('保存に失敗しました。画像が多すぎる可能性があります（LocalStorageの容量上限）。古いスレッドを削除してください。');
+    console.error(e);
+  }
+}
+
+let state = loadState();
+let isAdmin = sessionStorage.getItem(ADMIN_KEY) === '1';
+
+/* ============================================================
+   ユーザーID（2ch風・日替わり）
+   ============================================================ */
+function getSeed(){
+  let s = localStorage.getItem(SEED_KEY);
+  if(!s){ s = Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem(SEED_KEY, s); }
+  return s;
+}
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function shortHash(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  let x = h >>> 0, out = '';
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  for(let i=0;i<8;i++){ x = (Math.imul(x, 1103515245) + 12345) >>> 0; out += A[x % A.length]; }
+  return out;
+}
+function myId(){ return shortHash(getSeed()+'|'+todayStr()); }
+
+/* ============================================================
+   ユーティリティ
+   ============================================================ */
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(ts){
+  const d = new Date(ts);
+  const w = '日月火水木金土'[d.getDay()];
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}(${w}) ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function timeAgo(ts){
+  const s = (Date.now()-ts)/1000;
+  if(s<60) return '今';
+  if(s<3600) return Math.floor(s/60)+'分前';
+  if(s<86400) return Math.floor(s/3600)+'時間前';
+  return Math.floor(s/86400)+'日前';
+}
+
+/* ----- ダイス：投稿時に確定させて本文に焼き込む -----
+   dice1d10= → \u0001 1d10:結果:内訳 \u0001  という不可視マーカーに変換          */
+function bakeDice(text){
+  return text.replace(/dice(\d{1,2})d(\d{1,4})=/gi, (m, n, sides) => {
+    n = Math.min(parseInt(n,10), 20);
+    sides = Math.min(parseInt(sides,10), 1000);
+    if(n < 1 || sides < 1) return m;
+    let rolls = [], total = 0;
+    for(let i=0;i<n;i++){ const r = 1 + Math.floor(Math.random()*sides); rolls.push(r); total += r; }
+    return `\u0001${n}d${sides}:${total}:${rolls.join(',')}\u0001`;
+  });
+}
+
+/* ----- 本文の描画：エスケープ→ダイス→アンカー→改行 ----- */
+function renderBody(raw){
+  let h = escapeHtml(raw);
+  // ダイスマーカーを展開
+  h = h.replace(/\u0001(\d+)d(\d+):(\d+):([\d,]+)\u0001/g, (m, n, sides, total, rolls) => {
+    const multi = parseInt(n,10) > 1;
+    const detail = multi ? ` <span class="dice-detail">(${rolls})</span>` : '';
+    return `<span class="dice">🎲 ${n}d${sides}=<b>${total}</b>${detail}</span>`;
+  });
+  // アンカー >>N （エスケープ後は &gt;&gt;N）
+  h = h.replace(/(?:&gt;){2}(\d+)/g, (m, num) =>
+    `<a href="#" class="anchor" data-num="${num}">&gt;&gt;${num}</a>`);
+  // 改行
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+
+/* ----- 画像処理：縮小してdataURL化 ----- */
+function processImage(file, cb){
+  if(!file){ cb(null); return; }
+  if(!file.type.startsWith('image/')){ alert('画像ファイルを選択してください。'); cb(null); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      const scale = Math.min(1, MAX_DIM / Math.max(w, h));
+      w = Math.round(w*scale); h = Math.round(h*scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      cb(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => { alert('画像の読み込みに失敗しました。'); cb(null); };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ============================================================
+   投稿の可否チェック（BAN / NGワード）
+   ============================================================ */
+function postGuard(body){
+  if(state.bannedIds.includes(myId()))
+    return { ok:false, msg:'あなたのIDは管理人により書き込みを制限されています。' };
+  const lower = body.toLowerCase();
+  const hit = state.ngWords.find(w => w && lower.includes(w.toLowerCase()));
+  if(hit) return { ok:false, msg:'NGワードが含まれているため投稿できません。' };
+  return { ok:true };
+}
+
+/* ============================================================
+   データ操作
+   ============================================================ */
+function createThread(title, name, body, image){
+  title = title.trim(); body = body.trim();
+  if(!title){ alert('スレッドタイトルを入力してください。'); return false; }
+  if(!body && !image){ alert('本文または画像を入力してください。'); return false; }
+  const g = postGuard(title+'\n'+body); if(!g.ok){ alert(g.msg); return false; }
+
+  const now = Date.now();
+  const thread = {
+    id: state.nextThreadId++,
+    title,
+    createdAt: now,
+    updatedAt: now,
+    posts: [{
+      num:1,
+      name: name.trim() || '名無しさん',
+      body: bakeDice(body),
+      image: image || null,
+      id: myId(),
+      createdAt: now,
+      reports:0, reported:false, deleted:false
+    }]
+  };
+  state.threads.unshift(thread);
+  saveState();
+  return thread.id;
+}
+
+function addReply(threadId, name, body, image){
+  const t = state.threads.find(t => t.id === threadId);
+  if(!t) return false;
+  if(t.posts.length >= MAX_RES){ alert('このスレッドは規定のレス数に達したため書き込めません。'); return false; }
+  body = body.trim();
+  if(!body && !image){ alert('本文または画像を入力してください。'); return false; }
+  const g = postGuard(body); if(!g.ok){ alert(g.msg); return false; }
+
+  const now = Date.now();
+  t.posts.push({
+    num: t.posts.length + 1,
+    name: name.trim() || '名無しさん',
+    body: bakeDice(body),
+    image: image || null,
+    id: myId(),
+    createdAt: now,
+    reports:0, reported:false, deleted:false
+  });
+  t.updatedAt = now;
+  saveState();
+  return true;
+}
+
+function reportPost(threadId, num){
+  const t = state.threads.find(t=>t.id===threadId); if(!t) return;
+  const p = t.posts.find(p=>p.num===num); if(!p) return;
+  p.reports = (p.reports||0)+1; p.reported = true;
+  saveState();
+  alert('通報しました。管理人が確認します。');
+}
+
+/* ---- 以下は管理人専用 ---- */
+function deletePost(threadId, num){
+  const t = state.threads.find(t=>t.id===threadId); if(!t) return;
+  if(num === 1){
+    if(confirm('これはスレッドの>>1です。スレッドごと削除しますか？')) deleteThread(threadId);
+    return;
+  }
+  const p = t.posts.find(p=>p.num===num); if(!p) return;
+  if(!confirm(`>>${num} を削除しますか？`)) return;
+  p.deleted = true; p.body = ''; p.image = null; p.reported = false;
+  saveState(); renderThread(threadId);
+}
+function deleteThread(threadId){
+  if(!confirm('このスレッドを完全に削除しますか？（元に戻せません）')) return;
+  state.threads = state.threads.filter(t=>t.id!==threadId);
+  saveState(); location.hash = '';
+}
+function banId(id){
+  if(!id) return;
+  if(!confirm(`ID:${id} を書き込み禁止（BAN）にしますか？`)) return;
+  if(!state.bannedIds.includes(id)) state.bannedIds.push(id);
+  saveState();
+  alert(`ID:${id} をBANしました。`);
+  const m = location.hash.match(/^#\/t\/(\d+)/);
+  if(m) renderThread(parseInt(m[1],10));
+}
+function unbanId(id){
+  state.bannedIds = state.bannedIds.filter(x=>x!==id);
+  saveState(); openAdminPanel();
+}
+function addNg(word){
+  word = word.trim(); if(!word) return;
+  if(!state.ngWords.includes(word)) state.ngWords.push(word);
+  saveState(); openAdminPanel();
+}
+function removeNg(word){
+  state.ngWords = state.ngWords.filter(w=>w!==word);
+  saveState(); openAdminPanel();
+}
+
+/* ============================================================
+   描画：一覧
+   ============================================================ */
+const app = document.getElementById('app');
+
+function imgPickerHtml(idPrefix){
+  return `
+    <div class="img-pick">
+      <label class="img-label" for="${idPrefix}-file">🖼 画像を添付</label>
+      <input type="file" id="${idPrefix}-file" accept="image/*">
+      <span class="img-prev" id="${idPrefix}-prev">
+        <img id="${idPrefix}-prev-img" src="" alt="">
+        <button class="img-clear" id="${idPrefix}-clear">削除</button>
+      </span>
+    </div>`;
+}
+
+let pendingThreadImg = null;
+let pendingReplyImg  = null;
+
+function renderList(){
+  pendingThreadImg = null;
+  const threads = state.threads;
+  const cards = threads.map(t => {
+    const op = t.posts[0];
+    const thumb = op && op.image
+      ? `<img class="thread-thumb" src="${op.image}" alt="">`
+      : `<div class="thread-thumb placeholder">板</div>`;
+    const snippetSrc = op ? (op.deleted ? '（削除済み）' : op.body.replace(/\u0001\d+d\d+:\d+:[\d,]+\u0001/g,'[ダイス]')) : '';
+    const full = t.posts.length >= MAX_RES ? `<span class="full-tag">満員</span>` : '';
+    return `
+      <div class="card thread-card" data-id="${t.id}">
+        ${thumb}
+        <div class="thread-main">
+          <div class="thread-title">${escapeHtml(t.title)} ${full}<span class="tid">#${t.id}</span></div>
+          <div class="thread-snippet">${escapeHtml(snippetSrc)}</div>
+          <div class="thread-meta">
+            <span>レス <b>${t.posts.length}</b>/${MAX_RES}</span>
+            <span>最終更新 ${timeAgo(t.updatedAt)}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="card form-card">
+      <h2>新規スレッド作成</h2>
+      <div class="field">
+        <label>スレッドタイトル</label>
+        <input type="text" id="nt-title" placeholder="例：今期のおすすめアニメを語るスレ" maxlength="80">
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>名前（任意）</label>
+          <input type="text" id="nt-name" placeholder="名無しさん" maxlength="30">
+        </div>
+      </div>
+      <div class="field">
+        <label>本文</label>
+        <textarea id="nt-body" placeholder="本文を入力…&#10;ダイス: dice1d10=  /  アンカー: &gt;&gt;1"></textarea>
+      </div>
+      <div class="form-foot">
+        ${imgPickerHtml('nt')}
+        <button class="btn btn-primary" id="nt-submit" style="margin-left:auto;">スレッドを立てる</button>
+      </div>
+      <div class="hint">
+        ダイス <code>dice1d10=</code> <code>dice3d6=</code> ／ アンカー <code>&gt;&gt;5</code> が使えます。1スレッド最大 ${MAX_RES} レスで自動締切。
+      </div>
+    </div>
+
+    <div class="list-head">
+      <h2>スレッド一覧</h2>
+      <span class="count">${threads.length} 件</span>
+    </div>
+    ${threads.length ? cards : `<div class="empty">まだスレッドがありません。<br>上のフォームから最初のスレッドを立ててみましょう。</div>`}
+  `;
+
+  // イベント
+  document.querySelectorAll('.thread-card').forEach(el=>{
+    el.addEventListener('click', ()=>{ location.hash = '#/t/'+el.dataset.id; });
+  });
+  bindImagePicker('nt', dataUrl => pendingThreadImg = dataUrl);
+  document.getElementById('nt-submit').addEventListener('click', ()=>{
+    const id = createThread(
+      document.getElementById('nt-title').value,
+      document.getElementById('nt-name').value,
+      document.getElementById('nt-body').value,
+      pendingThreadImg
+    );
+    if(id) location.hash = '#/t/'+id;
+  });
+}
+
+/* ============================================================
+   描画：スレッド詳細
+   ============================================================ */
+function renderThread(threadId){
+  pendingReplyImg = null;
+  const t = state.threads.find(t=>t.id===threadId);
+  if(!t){ location.hash=''; return; }
+  const closed = t.posts.length >= MAX_RES;
+
+  const postsHtml = t.posts.map(p => renderPost(t.id, p)).join('');
+
+  const replyForm = closed ? `
+    <div class="closed-note">🔒 このスレッドは ${MAX_RES} レスに達したため、新規の書き込みは締め切られました。</div>
+  ` : `
+    <div class="card form-card" style="margin-top:18px;">
+      <h2>このスレッドに返信する</h2>
+      <div class="form-row">
+        <div class="field">
+          <label>名前（任意）</label>
+          <input type="text" id="rp-name" placeholder="名無しさん" maxlength="30">
+        </div>
+      </div>
+      <div class="field">
+        <label>本文</label>
+        <textarea id="rp-body" placeholder="返信を入力…"></textarea>
+      </div>
+      <div class="form-foot">
+        ${imgPickerHtml('rp')}
+        <button class="btn btn-primary" id="rp-submit" style="margin-left:auto;">書き込む</button>
+      </div>
+    </div>`;
+
+  app.innerHTML = `
+    <div class="thread-head">
+      <button class="back" id="backBtn">← スレッド一覧へ戻る</button>
+      <h1>${escapeHtml(t.title)}</h1>
+      <div class="sub">スレッド #${t.id} ・ ${t.posts.length}/${MAX_RES} レス ・ 作成 ${fmtDate(t.createdAt)}</div>
+    </div>
+    <div class="posts" id="posts">${postsHtml}</div>
+    ${replyForm}
+  `;
+
+  // イベント
+  document.getElementById('backBtn').addEventListener('click', ()=>{ location.hash=''; });
+  bindPostEvents(t);
+  if(!closed){
+    bindImagePicker('rp', dataUrl => pendingReplyImg = dataUrl);
+    document.getElementById('rp-submit').addEventListener('click', ()=>{
+      const ok = addReply(
+        t.id,
+        document.getElementById('rp-name').value,
+        document.getElementById('rp-body').value,
+        pendingReplyImg
+      );
+      if(ok){
+        renderThread(t.id);
+        // 末尾へスクロール
+        window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' });
+      }
+    });
+  }
+}
+
+function renderPost(threadId, p){
+  const banned = state.bannedIds.includes(p.id);
+  const bodyHtml = p.deleted
+    ? `<span class="deleted-body">（管理人により削除されました）</span>`
+    : renderBody(p.body) + (p.image ? `<img class="attach" src="${p.image}" alt="添付画像">` : '');
+  const reportBadge = p.reported ? `<span class="report-badge">⚑ 通報 ${p.reports}</span>` : '';
+  return `
+    <div class="post ${p.num===1?'op':''} ${p.reported?'reported-row':''}" id="post-${p.num}">
+      <div class="post-head">
+        <span class="post-num">${p.num}</span>
+        <span class="post-name">${escapeHtml(p.name)}</span>
+        <span class="post-date">${fmtDate(p.createdAt)}</span>
+        <span class="post-id">ID:${p.id}${banned?' <span class="ban-mark">[BAN]</span>':''}</span>
+      </div>
+      <div class="post-body">${bodyHtml}</div>
+      <div class="post-foot">
+        ${reportBadge}
+        ${p.deleted ? '' : `
+          <button class="btn btn-ghost btn-sm act-quote" data-num="${p.num}">返信</button>
+          <button class="btn btn-ghost btn-sm act-report" data-num="${p.num}">通報</button>
+          <span class="mod-tools">
+            <button class="btn btn-danger btn-sm act-del" data-num="${p.num}">削除</button>
+            <button class="btn btn-danger btn-sm act-ban" data-id="${p.id}">IDをBAN</button>
+          </span>
+        `}
+      </div>
+    </div>`;
+}
+
+/* ----- スレッド内イベント（アンカー / 通報 / 管理 / 画像） ----- */
+function bindPostEvents(t){
+  const posts = document.getElementById('posts');
+
+  // アンカー：ホバーでポップアップ、クリックでジャンプ
+  posts.querySelectorAll('.anchor').forEach(a=>{
+    a.addEventListener('mouseenter', e => showAnchorPop(e, t, parseInt(a.dataset.num,10)));
+    a.addEventListener('mousemove', e => moveAnchorPop(e));
+    a.addEventListener('mouseleave', hideAnchorPop);
+    a.addEventListener('click', e=>{
+      e.preventDefault();
+      jumpToPost(parseInt(a.dataset.num,10));
+    });
+  });
+
+  // 画像ライトボックス
+  posts.querySelectorAll('img.attach').forEach(img=>{
+    img.addEventListener('click', ()=> openLightbox(img.src));
+  });
+
+  // 返信（>>N を入力欄へ挿入）
+  posts.querySelectorAll('.act-quote').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const ta = document.getElementById('rp-body');
+      if(!ta) return;
+      ta.value += (ta.value && !ta.value.endsWith('\n') ? '\n' : '') + '>>'+b.dataset.num+'\n';
+      ta.focus();
+    });
+  });
+  // 通報
+  posts.querySelectorAll('.act-report').forEach(b=>{
+    b.addEventListener('click', ()=> reportPost(t.id, parseInt(b.dataset.num,10)));
+  });
+  // 管理：削除 / BAN
+  posts.querySelectorAll('.act-del').forEach(b=>{
+    b.addEventListener('click', ()=> deletePost(t.id, parseInt(b.dataset.num,10)));
+  });
+  posts.querySelectorAll('.act-ban').forEach(b=>{
+    b.addEventListener('click', ()=> banId(b.dataset.id));
+  });
+}
+
+function jumpToPost(num){
+  const el = document.getElementById('post-'+num);
+  if(!el) return;
+  el.scrollIntoView({ behavior:'smooth', block:'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
+/* ----- アンカーポップアップ ----- */
+const pop = document.getElementById('anchor-pop');
+let currentThreadForPop = null;
+function showAnchorPop(e, t, num){
+  currentThreadForPop = t;
+  const p = t.posts.find(p=>p.num===num);
+  if(!p){ pop.innerHTML = `<div class="pp-head">>>${num}</div><div class="pp-body">該当レスがありません</div>`; }
+  else {
+    const body = p.deleted ? '（削除済み）' : renderBody(p.body);
+    const img = (!p.deleted && p.image) ? `<img src="${p.image}" alt="">` : '';
+    pop.innerHTML = `<div class="pp-head">${p.num} 名前：${escapeHtml(p.name)} ID:${p.id}</div><div class="pp-body">${body}${img}</div>`;
+  }
+  pop.style.display = 'block';
+  moveAnchorPop(e);
+}
+function moveAnchorPop(e){
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const r = pop.getBoundingClientRect();
+  if(x + r.width > window.innerWidth)  x = e.clientX - r.width - pad;
+  if(y + r.height > window.innerHeight) y = window.innerHeight - r.height - pad;
+  pop.style.left = Math.max(8,x)+'px';
+  pop.style.top  = Math.max(8,y)+'px';
+}
+function hideAnchorPop(){ pop.style.display='none'; }
+
+/* ----- ライトボックス ----- */
+const lightbox = document.getElementById('lightbox');
+function openLightbox(src){
+  lightbox.querySelector('img').src = src;
+  lightbox.style.display = 'flex';
+}
+lightbox.addEventListener('click', ()=>{ lightbox.style.display='none'; });
+
+/* ============================================================
+   画像ピッカー共通バインド
+   ============================================================ */
+function bindImagePicker(prefix, onPick){
+  const file = document.getElementById(prefix+'-file');
+  const prev = document.getElementById(prefix+'-prev');
+  const prevImg = document.getElementById(prefix+'-prev-img');
+  const clearBtn = document.getElementById(prefix+'-clear');
+  if(!file) return;
+  file.addEventListener('change', ()=>{
+    const f = file.files[0];
+    processImage(f, dataUrl=>{
+      onPick(dataUrl);
+      if(dataUrl){ prevImg.src = dataUrl; prev.classList.add('show'); }
+      else { prev.classList.remove('show'); file.value=''; }
+    });
+  });
+  clearBtn.addEventListener('click', ()=>{
+    onPick(null); file.value=''; prev.classList.remove('show');
+  });
+}
+
+/* ============================================================
+   管理パネル
+   ============================================================ */
+const adminModal = document.getElementById('adminModal');
+const adminModalBody = document.getElementById('adminModalBody');
+
+document.getElementById('adminBtn').addEventListener('click', openAdminPanel);
+adminModal.addEventListener('click', e=>{ if(e.target===adminModal) closeAdminPanel(); });
+
+function openAdminPanel(){
+  if(!isAdmin){
+    adminModalBody.innerHTML = `
+      <button class="modal-close" id="amClose">×</button>
+      <h2>🔑 管理人ログイン</h2>
+      <div class="field">
+        <label>管理パスワード</label>
+        <input type="text" id="am-pass" placeholder="パスワードを入力" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="am-login">ログイン</button>
+      <p class="note">※プロトタイプの初期パスワードは <b>admin</b> です（コード内 <code>ADMIN_PASS</code> で変更可。本番ではサーバー側認証が必須）。</p>
+    `;
+    adminModal.classList.add('show');
+    document.getElementById('amClose').onclick = closeAdminPanel;
+    const login = ()=>{
+      if(document.getElementById('am-pass').value === ADMIN_PASS){
+        isAdmin = true; sessionStorage.setItem(ADMIN_KEY,'1');
+        document.body.classList.add('admin');
+        openAdminPanel();
+        rerender();
+      } else { alert('パスワードが違います。'); }
+    };
+    document.getElementById('am-login').onclick = login;
+    document.getElementById('am-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+    return;
+  }
+
+  // 通報レス収集
+  const reported = [];
+  state.threads.forEach(t=> t.posts.forEach(p=>{
+    if(p.reported && !p.deleted) reported.push({ tid:t.id, ttitle:t.title, p });
+  }));
+  reported.sort((a,b)=> (b.p.reports||0)-(a.p.reports||0));
+
+  const banTags = state.bannedIds.length
+    ? state.bannedIds.map(id=>`<span class="tag">ID:${id}<button data-id="${id}" class="unban">×</button></span>`).join('')
+    : `<span class="note">なし</span>`;
+  const ngTags = state.ngWords.length
+    ? state.ngWords.map(w=>`<span class="tag">${escapeHtml(w)}<button data-w="${escapeHtml(w)}" class="rmng">×</button></span>`).join('')
+    : `<span class="note">なし</span>`;
+  const reportList = reported.length
+    ? reported.map(r=>`
+        <div class="report-item">
+          <div class="ri-head"><span>「${escapeHtml(r.ttitle)}」 &gt;&gt;${r.p.num}</span><span>⚑ ${r.p.reports} 件</span></div>
+          <div class="ri-body">${escapeHtml(r.p.body.replace(/\u0001\d+d\d+:\d+:[\d,]+\u0001/g,'[ダイス]'))}</div>
+          <div class="ri-actions">
+            <button class="btn btn-sm ri-jump" data-tid="${r.tid}" data-num="${r.p.num}">表示</button>
+            <button class="btn btn-danger btn-sm ri-del" data-tid="${r.tid}" data-num="${r.p.num}">削除</button>
+            <button class="btn btn-danger btn-sm ri-ban" data-id="${r.p.id}">ID:${r.p.id} をBAN</button>
+          </div>
+        </div>`).join('')
+    : `<p class="note">通報されたレスはありません。</p>`;
+
+  adminModalBody.innerHTML = `
+    <button class="modal-close" id="amClose">×</button>
+    <h2>⚙ 管理パネル</h2>
+
+    <section>
+      <h3>⚑ 通報されたレス（${reported.length}）</h3>
+      ${reportList}
+    </section>
+
+    <section>
+      <h3>🚫 BAN中のID</h3>
+      <div class="tag-list">${banTags}</div>
+      <div class="inline-add">
+        <input type="text" id="am-ban-input" placeholder="BANするID（例: Ab3Xk9pQ）">
+        <button class="btn btn-sm" id="am-ban-add">追加</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>🔤 NGワード（含まれると投稿不可）</h3>
+      <div class="tag-list">${ngTags}</div>
+      <div class="inline-add">
+        <input type="text" id="am-ng-input" placeholder="NGワードを追加">
+        <button class="btn btn-sm" id="am-ng-add">追加</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>セッション</h3>
+      <button class="btn btn-sm" id="am-logout">ログアウト</button>
+      <p class="note">あなたの現在のID：<b>ID:${myId()}</b>（日替わりで変わります）</p>
+    </section>
+  `;
+  adminModal.classList.add('show');
+
+  document.getElementById('amClose').onclick = closeAdminPanel;
+  document.getElementById('am-logout').onclick = ()=>{
+    isAdmin=false; sessionStorage.removeItem(ADMIN_KEY);
+    document.body.classList.remove('admin'); closeAdminPanel(); rerender();
+  };
+  document.getElementById('am-ban-add').onclick = ()=>{
+    banIdSilent(document.getElementById('am-ban-input').value.trim());
+  };
+  document.getElementById('am-ng-add').onclick = ()=>{
+    addNg(document.getElementById('am-ng-input').value);
+  };
+  adminModalBody.querySelectorAll('.unban').forEach(b=> b.onclick=()=>unbanId(b.dataset.id));
+  adminModalBody.querySelectorAll('.rmng').forEach(b=> b.onclick=()=>removeNg(b.dataset.w));
+  adminModalBody.querySelectorAll('.ri-jump').forEach(b=> b.onclick=()=>{
+    closeAdminPanel(); location.hash='#/t/'+b.dataset.tid;
+    setTimeout(()=>jumpToPost(parseInt(b.dataset.num,10)), 120);
+  });
+  adminModalBody.querySelectorAll('.ri-del').forEach(b=> b.onclick=()=>{
+    deletePost(parseInt(b.dataset.tid,10), parseInt(b.dataset.num,10)); openAdminPanel();
+  });
+  adminModalBody.querySelectorAll('.ri-ban').forEach(b=> b.onclick=()=>{ banId(b.dataset.id); openAdminPanel(); });
+}
+function banIdSilent(id){
+  if(!id) return;
+  if(!state.bannedIds.includes(id)) state.bannedIds.push(id);
+  saveState(); openAdminPanel(); rerender();
+}
+function closeAdminPanel(){ adminModal.classList.remove('show'); }
+
+/* ============================================================
+   ルーティング
+   ============================================================ */
+function rerender(){
+  const m = location.hash.match(/^#\/t\/(\d+)/);
+  if(m) renderThread(parseInt(m[1],10)); else renderList();
+}
+function route(){ hideAnchorPop(); rerender(); }
+window.addEventListener('hashchange', route);
+document.getElementById('logo').addEventListener('click', ()=>{ location.hash=''; });
+
+/* ============================================================
+   初期化（初回は使い方スレッドを自動生成）
+   ============================================================ */
+function seedIfEmpty(){
+  if(state) return;
+  state = defaultState();
+  const now = Date.now();
+  const thread = {
+    id: state.nextThreadId++,
+    title: '【はじめに】この掲示板の使い方スレッド',
+    createdAt: now-3600000, updatedAt: now-120000,
+    posts: [
+      { num:1, name:'管理人', id:shortHash('admin|'+todayStr()), createdAt:now-3600000,
+        reports:0, reported:false, deleted:false,
+        body:'ようこそ。これはテスト用のスレッドです。\nこの掲示板では次の機能が使えます：\n・画像添付（スレ立て・返信どちらも1枚）\n・ダイス：本文に dice1d10= や dice3d6= と書くと出目に変換\n・アンカー： >>1 のように書くとそのレスへリンク（ホバーでプレビュー）\n・1スレッド最大200レスで自動締切\n・各レスの「通報」ボタンと、管理人による削除・IDのBAN' },
+      { num:2, name:'名無しさん', id:shortHash('demo1|'+todayStr()), createdAt:now-1800000,
+        reports:0, reported:false, deleted:false,
+        body:bakeDice('テストです。ダイスを振ってみる → dice1d100=\nまどマギ実況スレ立てていい？') },
+      { num:3, name:'名無しさん', id:shortHash('demo2|'+todayStr()), createdAt:now-120000,
+        reports:0, reported:false, deleted:false,
+        body:'>>2 いいと思う！\n3個振りもできるよ dice3d6=' }
+    ]
+  };
+  // >>2,>>3 のダイスは bakeDice 済み（demo2側は手動で焼き込み）
+  thread.posts[2].body = thread.posts[2].body.replace('dice3d6=', '') + bakeDice('dice3d6=');
+  state.threads.push(thread);
+  saveState();
+}
+
+seedIfEmpty();
+if(isAdmin) document.body.classList.add('admin');
+route();
+</script>
+</body>
+</html>
